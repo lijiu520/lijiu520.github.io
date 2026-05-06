@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>Roblox私服直跳（兼容两种链接）</title>
+<title>Roblox私服直跳（私有服专用）</title>
 <style>
     *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif;}
     body{background:#14141f;color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -16,7 +16,7 @@
 </head>
 <body>
 <div class="card">
-    <h2>Roblox私服直跳</h2>
+    <h2>Roblox私服直跳（免登录）</h2>
     <input id="linkInput" placeholder="粘贴share码或privateServer链接" />
     <button onclick="go()">一键进服</button>
     <div class="tip" id="tip"></div>
@@ -27,20 +27,23 @@ function go(){
     let url = document.getElementById("linkInput").value.trim();
     let tip = document.getElementById("tip");
 
-    // 同时匹配两种私服码
-    const codeMatch = url.match(/code=([0-9a-zA-Z]+)/);
-    const privateMatch = url.match(/privateServerLinkCode=([0-9]+)/);
+    // 匹配两种链接
+    const shareMatch = url.match(/code=([0-9a-fA-F]+)/);
+    const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
+    const placeMatch = url.match(/games\/(\d+)/); // 提取placeId
 
-    if (privateMatch) {
-        // 私有服 → 跳官方游戏页（最稳定）
-        tip.innerText = "✅ 打开游戏页面...";
-        window.location.href = "https://www.roblox.com/games/15532962292/Sols-RNG";
-    } else if (codeMatch) {
-        // 分享服 → 唤醒客户端
-        tip.innerText = "✅ 正在唤起Roblox...";
-        window.location.href = `roblox://navigation/share_links?code=${codeMatch[1]}&type=Server`;
+    if (shareMatch) {
+        // 旧share码
+        tip.innerText = "✅ 唤起Roblox（share）...";
+        window.location.href = `roblox://navigation/share_links?code=${shareMatch[1]}&type=Server`;
+    } else if (privateMatch && placeMatch) {
+        // 私有服：用正确协议（placeId + linkCode）
+        let placeId = placeMatch[1];
+        let linkCode = privateMatch[1];
+        tip.innerText = "✅ 唤起Roblox（私有服）...";
+        window.location.href = `roblox://experiences/start?placeId=${placeId}&linkCode=${linkCode}`;
     } else {
-        tip.innerText = "❌ 链接无效，请检查";
+        tip.innerText = "❌ 链接无效，复制完整私有服链接";
     }
 }
 </script>
