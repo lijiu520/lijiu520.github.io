@@ -26,25 +26,30 @@
 function go(){
     let url = document.getElementById("linkInput").value.trim();
     let tip = document.getElementById("tip");
+    // 记录开始时间
+    let start = performance.now();
 
-    // 匹配两种链接
     const shareMatch = url.match(/code=([0-9a-fA-F]+)/);
     const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
-    const placeMatch = url.match(/games\/(\d+)/); // 提取placeId
+    const placeMatch = url.match(/games\/(\d+)/);
 
     if (shareMatch) {
-        // 旧share码
         tip.innerText = "✅ 唤起Roblox（share）...";
         window.location.href = `roblox://navigation/share_links?code=${shareMatch[1]}&type=Server`;
     } else if (privateMatch && placeMatch) {
-        // 私有服：用正确协议（placeId + linkCode）
         let placeId = placeMatch[1];
         let linkCode = privateMatch[1];
         tip.innerText = "✅ 唤起Roblox（私有服）...";
         window.location.href = `roblox://experiences/start?placeId=${placeId}&linkCode=${linkCode}`;
     } else {
         tip.innerText = "❌ 链接无效，复制完整私有服链接";
+        return;
     }
+
+    // 计算用时
+    let end = performance.now();
+    let ms = (end - start).toFixed(2);
+    tip.innerText += ` 用时：${ms} ms`;
 }
 </script>
 </body>
