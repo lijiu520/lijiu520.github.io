@@ -39,71 +39,80 @@ button:hover{background:#4752d8;}
 <div class="tip" id="tip"></div>
 </div>
 <script>
-// 抽离链接验证逻辑，复用给手动跳转和自动跳转
 function getJumpInfo(url) {
-const shareMatch = url.match(/code=([0-9a-fA-F_]+)/);
-const shareTypeMatch = url.match(/type=([a-zA-Z]+)/);
-const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
-const placeMatch = url.match(/games\/(\d+)/);
-
-if (shareMatch) {
-    const code = shareMatch[1];
-    // 判断是公服邀请还是服务器分享
-    if(shareTypeMatch && shareTypeMatch[1] === 'ExperienceInvite'){
-        return {
-            valid: true,
-            href: `roblox://navigation/share_links?code=${code}&type=ExperienceInvite`,
-            tip: "✅ 唤起Roblox（公服分享）..."
-        };
-    }else{
-        return {
-            valid: true,
-            href: `roblox://navigation/share_links?code=${code}&type=Server`,
-            tip: "✅ 唤起Roblox（私有服share）..."
-        };
+    try {
+        const urlObj = new URL(url);
+        // 仅匹配roblox.com域名链接
+        if (!urlObj.hostname.endsWith('roblox.com')) return { valid: false };
+        const path = urlObj.pathname;
+        const isShareLink = path === '/share' || path === '/share-links';
+        const isPrivateServer = path.includes('/games/') && urlObj.searchParams.has('privateServerLinkCode');
+        if (!isShareLink && !isPrivateServer) return { valid: false };
+    } catch (e) {
+        // 非标准URL直接走正则匹配兼容粘贴短码
     }
-} else if (privateMatch && placeMatch) {
-return {
-valid: true,
-href: `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateMatch[1]}`,
-tip: "✅ 唤起Roblox（私有服链接）..."
-};
-}
-return { valid: false };
+
+    const shareMatch = url.match(/code=([0-9a-zA-Z_]+)/);
+    const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
+    const placeMatch = url.match(/games\/(\d+)/);
+    const typeMatch = url.match(/type=([a-zA-Z]+)/);
+
+    let jumpUrl = null;
+    let tipText = "";
+    if (shareMatch) {
+        const code = shareMatch[1];
+        const linkType = typeMatch ? typeMatch[1] : 'Server';
+        if (linkType === 'ExperienceInvite') {
+            jumpUrl = `roblox://navigation/share_links?code=${code}&type=ExperienceInvite`;
+            tipText = "✅ 唤起Roblox（公服分享邀请）...";
+        } else {
+            jumpUrl = `roblox://navigation/share_links?code=${code}&type=Server`;
+            tipText = "✅ 唤起Roblox（服务器分享）...";
+        }
+    } else if (privateMatch && placeMatch) {
+        jumpUrl = `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateMatch[1]}`;
+        tipText = "✅ 唤起Roblox（私有服）...";
+    }
+
+    if (!jumpUrl) return { valid: false };
+    return {
+        valid: true,
+        href: jumpUrl,
+        tip: tipText
+    };
 }
 
 function go(){
-let url = document.getElementById("linkInput").value.trim();
-let tip = document.getElementById("tip");
-let start = performance.now();
-const info = getJumpInfo(url);
+    let url = document.getElementById("linkInput").value.trim();
+    let tip = document.getElementById("tip");
+    let start = performance.now();
+    const info = getJumpInfo(url);
 
-if (info.valid) {
-tip.innerText = info.tip;
-window.location.href = info.href;
-let end = performance.now();
-let ms = (end - start).toFixed(2);
-tip.innerText += ` 用时：${ms} ms`;
-} else {
-tip.innerText = "❌ 链接无效，请复制完整Roblox分享/私有服链接";
-}
+    if (info.valid) {
+        tip.innerText = info.tip;
+        window.location.href = info.href;
+        let end = performance.now();
+        let ms = (end - start).toFixed(2);
+        tip.innerText += ` 用时：${ms} ms`;
+    } else {
+        tip.innerText = "❌ 链接无效，请复制完整Roblox分享/私有服链接";
+    }
 }
 
-// 自动跳转逻辑 + 防抖
+// 自动跳转防抖
 let autoJumpTimer = null;
 document.getElementById("linkInput").addEventListener("input", function() {
-const toggle = document.getElementById("autoJumpToggle");
-if (!toggle.checked) return;
+    const toggle = document.getElementById("autoJumpToggle");
+    if (!toggle.checked) return;
 
-clearTimeout(autoJumpTimer);
-const url = this.value.trim();
-if (!url) return;
+    clearTimeout(autoJumpTimer);
+    const url = this.value.trim();
+    if (!url) return;
 
-// 停止输入100ms后自动检测跳转
-autoJumpTimer = setTimeout(() => {
-const info = getJumpInfo(url);
-if (info.valid) go();
-}, 100);
+    autoJumpTimer = setTimeout(() => {
+        const info = getJumpInfo(url);
+        if (info.valid) go();
+    }, 100);
 });
 </script>
 </body>
