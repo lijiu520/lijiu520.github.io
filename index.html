@@ -1,101 +1,110 @@
-<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
 <title>Roblox私服直跳（私有服专用）</title>
 <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif;}
-    body{background:#14141f;color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
-    .card{background:#1e1e2f;padding:35px;border-radius:14px;width:100%;max-width:520px;box-shadow:0 0 30px #0008;}
-    h2{text-align:center;margin-bottom:25px;color:#b0c4ff;}
-    input{width:100%;padding:15px;border-radius:8px;border:none;background:#2b2b40;color:#fff;font-size:15px;outline:none;}
-    .auto-jump{
-        margin-top: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #ccc;
-        font-size: 14px;
-        cursor: pointer;
-    }
-    .auto-jump input[type="checkbox"]{
-        width: auto;
-        cursor: pointer;
-        accent-color: #5865f2;
-    }
-    button{width:100%;margin-top:18px;padding:15px;border-radius:8px;border:none;background:#5865f2;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;transition:0.2s;}
-    button:hover{background:#4752d8;}
-    .tip{margin-top:16px;font-size:13px;color:#aaa;text-align:center;word-break:break-all;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif;}
+body{background:#14141f;color:#fff;height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#1e1e2f;padding:35px;border-radius:14px;width:100%;max-width:520px;box-shadow:0 0 30px #0008;}
+h2{text-align:center;margin-bottom:25px;color:#b0c4ff;}
+input{width:100%;padding:15px;border-radius:8px;border:none;background:#2b2b40;color:#fff;font-size:15px;outline:none;}
+.auto-jump{
+margin-top: 14px;
+display: flex;
+align-items: center;
+gap: 8px;
+color: #ccc;
+font-size: 14px;
+cursor: pointer;
+}
+.auto-jump input[type="checkbox"]{
+width: auto;
+cursor: pointer;
+accent-color: #5865f2;
+}
+button{width:100%;margin-top:18px;padding:15px;border-radius:8px;border:none;background:#5865f2;color:#fff;font-size:16px;font-weight:bold;cursor:pointer;transition:0.2s;}
+button:hover{background:#4752d8;}
+.tip{margin-top:16px;font-size:13px;color:#aaa;text-align:center;word-break:break-all;}
 </style>
 </head>
 <body>
 <div class="card">
-    <h2>Roblox私服直跳（免登录）</h2>
-    <input id="linkInput" placeholder="粘贴share码或privateServer链接" />
-    <div class="auto-jump">
-        <input type="checkbox" id="autoJumpToggle">
-        <label for="autoJumpToggle">输入有效链接自动跳转</label>
-    </div>
-    <button onclick="go()">一键进服</button>
-    <div class="tip" id="tip"></div>
+<h2>Roblox私服直跳（免登录）</h2>
+<input id="linkInput" placeholder="粘贴share码或privateServer链接" />
+<div class="auto-jump">
+<input type="checkbox" id="autoJumpToggle">
+<label for="autoJumpToggle">输入有效链接自动跳转</label>
 </div>
-
+<button onclick="go()">一键进服</button>
+<div class="tip" id="tip"></div>
+</div>
 <script>
-    // 抽离链接验证逻辑，复用给手动跳转和自动跳转
-    function getJumpInfo(url) {
-        const shareMatch = url.match(/code=([0-9a-fA-F]+)/);
-        const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
-        const placeMatch = url.match(/games\/(\d+)/);
+// 抽离链接验证逻辑，复用给手动跳转和自动跳转
+function getJumpInfo(url) {
+const shareMatch = url.match(/code=([0-9a-fA-F_]+)/);
+const shareTypeMatch = url.match(/type=([a-zA-Z]+)/);
+const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
+const placeMatch = url.match(/games\/(\d+)/);
 
-        if (shareMatch) {
-            return {
-                valid: true,
-                href: `roblox://navigation/share_links?code=${shareMatch[1]}&type=Server`,
-                tip: "✅ 唤起Roblox（share）..."
-            };
-        } else if (privateMatch && placeMatch) {
-            return {
-                valid: true,
-                href: `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateMatch[1]}`,
-                tip: "✅ 唤起Roblox（私有服）..."
-            };
-        }
-        return { valid: false };
+if (shareMatch) {
+    const code = shareMatch[1];
+    // 判断是公服邀请还是服务器分享
+    if(shareTypeMatch && shareTypeMatch[1] === 'ExperienceInvite'){
+        return {
+            valid: true,
+            href: `roblox://navigation/share_links?code=${code}&type=ExperienceInvite`,
+            tip: "✅ 唤起Roblox（公服分享）..."
+        };
+    }else{
+        return {
+            valid: true,
+            href: `roblox://navigation/share_links?code=${code}&type=Server`,
+            tip: "✅ 唤起Roblox（私有服share）..."
+        };
     }
+} else if (privateMatch && placeMatch) {
+return {
+valid: true,
+href: `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateMatch[1]}`,
+tip: "✅ 唤起Roblox（私有服链接）..."
+};
+}
+return { valid: false };
+}
 
-    function go(){
-        let url = document.getElementById("linkInput").value.trim();
-        let tip = document.getElementById("tip");
-        let start = performance.now();
-        const info = getJumpInfo(url);
+function go(){
+let url = document.getElementById("linkInput").value.trim();
+let tip = document.getElementById("tip");
+let start = performance.now();
+const info = getJumpInfo(url);
 
-        if (info.valid) {
-            tip.innerText = info.tip;
-            window.location.href = info.href;
-            let end = performance.now();
-            let ms = (end - start).toFixed(2);
-            tip.innerText += ` 用时：${ms} ms`;
-        } else {
-            tip.innerText = "❌ 链接无效，复制完整私有服链接";
-        }
-    }
+if (info.valid) {
+tip.innerText = info.tip;
+window.location.href = info.href;
+let end = performance.now();
+let ms = (end - start).toFixed(2);
+tip.innerText += ` 用时：${ms} ms`;
+} else {
+tip.innerText = "❌ 链接无效，请复制完整Roblox分享/私有服链接";
+}
+}
 
-    // 自动跳转逻辑 + 防抖
-    let autoJumpTimer = null;
-    document.getElementById("linkInput").addEventListener("input", function() {
-        const toggle = document.getElementById("autoJumpToggle");
-        if (!toggle.checked) return;
+// 自动跳转逻辑 + 防抖
+let autoJumpTimer = null;
+document.getElementById("linkInput").addEventListener("input", function() {
+const toggle = document.getElementById("autoJumpToggle");
+if (!toggle.checked) return;
 
-        clearTimeout(autoJumpTimer);
-        const url = this.value.trim();
-        if (!url) return;
+clearTimeout(autoJumpTimer);
+const url = this.value.trim();
+if (!url) return;
 
-        // 停止输入300ms后自动检测跳转
-        autoJumpTimer = setTimeout(() => {
-            const info = getJumpInfo(url);
-            if (info.valid) go();
-        }, 100);
-    });
+// 停止输入100ms后自动检测跳转
+autoJumpTimer = setTimeout(() => {
+const info = getJumpInfo(url);
+if (info.valid) go();
+}, 100);
+});
 </script>
 </body>
 </html>
