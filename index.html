@@ -39,60 +39,92 @@ button:hover{background:#4752d8;}
 <div class="tip" id="tip"></div>
 </div>
 <script>
-function getJumpInfo(url) {
+function getJumpInfo(input) {
+    // 优先使用标准URL API解析（准确率最高）
     try {
-        const urlObj = new URL(url);
-        // 仅匹配roblox.com域名链接
-        if (!urlObj.hostname.endsWith('roblox.com')) return { valid: false };
+        const urlObj = new URL(input);
+        // 仅允许roblox.com及其子域名
+        if (!urlObj.hostname.endsWith('roblox.com')) {
+            return { valid: false };
+        }
+
         const path = urlObj.pathname;
-        const isShareLink = path === '/share' || path === '/share-links';
-        const isPrivateServer = path.includes('/games/') && urlObj.searchParams.has('privateServerLinkCode');
-        if (!isShareLink && !isPrivateServer) return { valid: false };
+        const params = urlObj.searchParams;
+
+        // 匹配分享链接 /share 或 /share-links
+        if (path === '/share' || path === '/share-links') {
+            const code = params.get('code');
+            const linkType = params.get('type') || 'Server';
+            if (!code) return { valid: false };
+
+            return {
+                valid: true,
+                href: `roblox://navigation/share_links?code=${encodeURIComponent(code)}&type=${encodeURIComponent(linkType)}`,
+                tip: linkType === 'ExperienceInvite' ? "✅ 唤起Roblox（公服分享邀请）..." : "✅ 唤起Roblox（服务器分享）..."
+            };
+        }
+
+        // 匹配私有服链接 /games/xxx/...
+        if (path.includes('/games/')) {
+            // 从路径中精准提取placeId，避免正则误匹配
+            const pathParts = path.split('/').filter(Boolean);
+            const gamesIndex = pathParts.indexOf('games');
+            const placeId = pathParts[gamesIndex + 1];
+            // 兼容参数大小写变体
+            const linkCode = params.get('privateServerLinkCode') || params.get('privateserverlinkcode');
+
+            if (placeId && linkCode) {
+                return {
+                    valid: true,
+                    href: `roblox://experiences/start?placeId=${placeId}&linkCode=${linkCode}`,
+                    tip: "✅ 唤起Roblox（私有服）..."
+                };
+            }
+        }
+
+        // 是Roblox域名但不支持的链接类型
+        return { valid: false };
     } catch (e) {
-        // 非标准URL直接走正则匹配兼容粘贴短码
+        // URL解析失败，降级为正则匹配，兼容仅粘贴短码的场景
     }
 
-    const shareMatch = url.match(/code=([0-9a-zA-Z_]+)/);
-    const privateMatch = url.match(/privateServerLinkCode=(\d+)/);
-    const placeMatch = url.match(/games\/(\d+)/);
-    const typeMatch = url.match(/type=([a-zA-Z]+)/);
+    // ---------- 正则兼容模式（短码/不完整链接） ----------
+    const shareMatch = input.match(/code=([0-9a-zA-Z_]+)/i);
+    const typeMatch = input.match(/type=([a-zA-Z]+)/i);
+    const privateCodeMatch = input.match(/privateServerLinkCode=(\d+)/i);
+    const placeMatch = input.match(/games\/(\d+)/i);
 
-    let jumpUrl = null;
-    let tipText = "";
     if (shareMatch) {
         const code = shareMatch[1];
         const linkType = typeMatch ? typeMatch[1] : 'Server';
-        if (linkType === 'ExperienceInvite') {
-            jumpUrl = `roblox://navigation/share_links?code=${code}&type=ExperienceInvite`;
-            tipText = "✅ 唤起Roblox（公服分享邀请）...";
-        } else {
-            jumpUrl = `roblox://navigation/share_links?code=${code}&type=Server`;
-            tipText = "✅ 唤起Roblox（服务器分享）...";
-        }
-    } else if (privateMatch && placeMatch) {
-        jumpUrl = `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateMatch[1]}`;
-        tipText = "✅ 唤起Roblox（私有服）...";
+        return {
+            valid: true,
+            href: `roblox://navigation/share_links?code=${encodeURIComponent(code)}&type=${encodeURIComponent(linkType)}`,
+            tip: linkType === 'ExperienceInvite' ? "✅ 唤起Roblox（公服分享邀请）..." : "✅ 唤起Roblox（服务器分享）..."
+        };
     }
 
-    if (!jumpUrl) return { valid: false };
-    return {
-        valid: true,
-        href: jumpUrl,
-        tip: tipText
-    };
+    if (privateCodeMatch && placeMatch) {
+        return {
+            valid: true,
+            href: `roblox://experiences/start?placeId=${placeMatch[1]}&linkCode=${privateCodeMatch[1]}`,
+            tip: "✅ 唤起Roblox（私有服）..."
+        };
+    }
+
+    return { valid: false };
 }
 
 function go(){
-    let url = document.getElementById("linkInput").value.trim();
-    let tip = document.getElementById("tip");
-    let start = performance.now();
+    const url = document.getElementById("linkInput").value.trim();
+    const tip = document.getElementById("tip");
+    const start = performance.now();
     const info = getJumpInfo(url);
 
     if (info.valid) {
         tip.innerText = info.tip;
         window.location.href = info.href;
-        let end = performance.now();
-        let ms = (end - start).toFixed(2);
+        const ms = (performance.now() - start).toFixed(2);
         tip.innerText += ` 用时：${ms} ms`;
     } else {
         tip.innerText = "❌ 链接无效，请复制完整Roblox分享/私有服链接";
@@ -106,11 +138,11 @@ document.getElementById("linkInput").addEventListener("input", function() {
     if (!toggle.checked) return;
 
     clearTimeout(autoJumpTimer);
-    const url = this.value.trim();
-    if (!url) return;
+    const inputVal = this.value.trim();
+    if (!inputVal) return;
 
     autoJumpTimer = setTimeout(() => {
-        const info = getJumpInfo(url);
+        const info = getJumpInfo(inputVal);
         if (info.valid) go();
     }, 100);
 });
